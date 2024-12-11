@@ -10,8 +10,7 @@ using MailKit;
 using MailKit.Search;
 using System.Diagnostics;
 using MySql.Data.MySqlClient;
-
-// TODO: check imports
+using Org.BouncyCastle.Asn1.Cms;
 
 namespace SendEmailWithGoogleSMTP
 {
@@ -19,8 +18,8 @@ namespace SendEmailWithGoogleSMTP
     {
         static void Main()
         {
-            string fromMail = "*@gmail.com";
-            string fromPassword = "** ";
+            string fromMail = "***@gmail.com";
+            string fromPassword = "***";
             string toMail = "***@gmail.com";
 
             CheckForReplies(fromMail, fromPassword, toMail);
@@ -32,7 +31,7 @@ namespace SendEmailWithGoogleSMTP
         {
             MailMessage message = new MailMessage();
             message.From = new MailAddress(fromMail, "Daily Journal");
-            message.Subject = "answer:testv1.2";
+            message.Subject = "How was your day?";
             message.To.Add(new MailAddress(toMail));
             message.Body = "<html><body><h1>Describe how you felt during the day by responding to this email</h1></body></html>";
             message.IsBodyHtml = true;
@@ -47,8 +46,24 @@ namespace SendEmailWithGoogleSMTP
             smtpClient.Send(message);
         }
 
-        // TODO: AI impl
-        // TODO: emailReport
+        static void SendWeeklyRepot(string fromMail, string fromPassword, string toMail, string weeklyReport)
+        {
+            MailMessage message = new MailMessage();
+            message.From = new MailAddress(fromMail, "Daily Journal");
+            message.Subject = "Weekly Report";
+            message.To.Add(new MailAddress(toMail));
+            message.Body = $"<html><body><h1>{weeklyReport}</h1></body></html>";
+            message.IsBodyHtml = true;
+
+            var smtpClient = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential(fromMail, fromPassword),
+                EnableSsl = true,
+            };
+
+            smtpClient.Send(message);
+        }
 
         static void CheckForReplies(string fromMail, string fromPassword, string toMail)
         {
@@ -68,7 +83,7 @@ namespace SendEmailWithGoogleSMTP
                 if (lastUid != default) 
                 {
                     var messageBody = inbox.GetMessage(lastUid); 
-                    StoreReplyInDatabase(toMail, messageBody.TextBody);
+                    StoreReplyInDatabase(toMail, messageBody.TextBody, fromMail,fromPassword,toMail);
                     // Console.WriteLine("---------------------------");
                     // Console.WriteLine($"Message to put into DB: {messageBody.TextBody}");
                     // Console.WriteLine("---------------------------");
@@ -78,7 +93,7 @@ namespace SendEmailWithGoogleSMTP
             }
         }
 
-        static void StoreReplyInDatabase(string email, string replyText)
+        static void StoreReplyInDatabase(string email, string replyText, string fromMail, string fromPassword, string toMail)
         {
             string connectionString = "server=localhost;user=root;password=6fbusyXH;database=email_replies";
 
@@ -94,20 +109,17 @@ namespace SendEmailWithGoogleSMTP
                     command.ExecuteNonQuery();
                 }
 
-                // REF
-                
-
-                ClearDatabaseAndSendReport(connection);
+                ClearDatabaseAndSendReport(connection, fromMail ,fromPassword,toMail);
             }
         }
 
-        static void ClearDatabaseAndSendReport(MySqlConnection connection)
+        static void ClearDatabaseAndSendReport(MySqlConnection connection, string fromMail, string fromPassword, string toMail)
         {
             string countQuery = "SELECT COUNT(*) FROM Replies";
             using (var command = new MySqlCommand(countQuery, connection))
             {
                 int count = Convert.ToInt32(command.ExecuteScalar());
-                if (count >= 1)
+                if (count >= 6)
                 {
                     string pythonScriptPath = @"..\dailyJournal-v1.2\AIreport\script.py";
                     string arguments = "";
@@ -126,6 +138,8 @@ namespace SendEmailWithGoogleSMTP
                         string output = process.StandardOutput.ReadToEnd(); 
                         process.WaitForExit(); 
                         string weeklyReport = output;
+                        Thread.Sleep(2000);
+                        SendWeeklyRepot(fromMail, fromPassword, toMail, weeklyReport);
                         // Console.WriteLine("------------------------------");
                         // Console.WriteLine(weeklyReport);
                         // Console.WriteLine("------------------------------");
@@ -139,37 +153,6 @@ namespace SendEmailWithGoogleSMTP
                     }
                 }
             }
-        }
-
-        // TODO: report
-        // static string GenerateAIReport()
-        // {
-            
-        // }
-
-        // tests
-        static List<string> FetchRepliesFromDatabase()
-        {
-            string connectionString = "server=localhost;user=root;password=****;database=email_replies";
-            List<string> replies = new List<string>();
-
-            using (var connection = new MySqlConnection(connectionString))
-            {
-                connection.Open();
-                string selectQuery = "SELECT ReplyText FROM Replies";
-                using (var command = new MySqlCommand(selectQuery, connection))
-                {
-                    using (var reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            replies.Add(reader.GetString(0)); 
-                        }
-                    }
-                }
-            }
-
-            return replies;
         }
     }
 }

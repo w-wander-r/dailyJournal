@@ -1,5 +1,4 @@
 #v1.1
-"""
 import mysql.connector
 from textblob import TextBlob
 
@@ -32,16 +31,15 @@ def generate_ai_report(db_config):
         return report
 
     except mysql.connector.Error as err:
-        print(f"Error connecting to MySQL database: {err}")
-        return "Error generating report."
+        print(f"Cannot connect to DB: {err}")
+        return "Error generating report..."
 
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': '****',
+    'password': '6fbusyXH',
     'database': 'email_replies'
 }
 
 report = generate_ai_report(db_config)
 print(report)
-"""
